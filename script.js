@@ -60,6 +60,7 @@ let shellW = 0, shellH = 0;
 let baseScale = 1;
 let mode = 'manual';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 const formatButtonsEl = document.getElementById('formatButtons');
 const dropZone = document.getElementById('dropZone');
@@ -377,7 +378,13 @@ function exportWithSizeCap(canvas, f){
   const link = document.createElement('a');
   link.download = `fence_${currentFormat}_${mode}_${f.w}x${f.h}.jpg`;
   link.href = dataUrl;
-  link.click();
+
+  if(isIos){
+    updateStatus('iPhone does not support direct image downloads from this page. The image will open in a new tab so you can save it manually.','info');
+    window.open(dataUrl, '_blank');
+  } else {
+    link.click();
+  }
 }
 
 function copyPageLink(){
@@ -432,6 +439,7 @@ copyLinkBtn.addEventListener('click', copyPageLink);
 shareBtn.addEventListener('click', promptNativeShare);
 
 if(!navigator.share){
+  shareBtn.disabled = true;
   shareBtn.style.opacity = '0.64';
   shareBtn.style.cursor = 'not-allowed';
 }
