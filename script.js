@@ -1,26 +1,24 @@
-const FORMATS = {
+﻿const FORMATS = {
   banner: {
     name: "Banner Ad",
     w: 640, h: 100,
     format: "JPEG", maxKB: 200,
-    displayScale: 1,
     safeArea: {top:0, bottom:0, left:48, right:40},
     notes: [
-      ["Dimensions","640 &times; 100 px"],
+      ["Dimensions","640 × 100 px"],
       ["Format","JPG"],
       ["Max size","200 KB"],
-      ["Safe area","48px left / 40px right &mdash; keep logo, text, watermarks out of these margins"]
+      ["Safe area","48px left / 40px right — keep logo, text, watermarks out of these margins"]
     ]
   },
   logo: {
     name: "Brand Logo",
     w: 120, h: 120,
     format: "JPEG", maxKB: 50,
-    displayScale: 3,
     safeArea: null,
     notes: [
-      ["Used in","CTA, Carousel &amp; Takeover ads"],
-      ["Dimensions","120 &times; 120 px (1:1)"],
+      ["Used in","CTA, Carousel & Takeover ads"],
+      ["Dimensions","120 × 120 px (1:1)"],
       ["Format","JPEG"],
       ["Max size","50 KB"]
     ]
@@ -29,13 +27,12 @@ const FORMATS = {
     name: "Carousel Card",
     w: 440, h: 440,
     format: "JPEG", maxKB: 150,
-    displayScale: 0.9,
     safeArea: null,
     notes: [
-      ["Dimensions","440 &times; 440 px"],
+      ["Dimensions","440 × 440 px"],
       ["Format","JPEG"],
       ["Max size","150 KB per card"],
-      ["Cards needed","4&ndash;6 per carousel"],
+      ["Cards needed","4–6 per carousel"],
       ["Rule","No brand logo/watermark or CTA text on the creative itself"]
     ]
   },
@@ -43,10 +40,9 @@ const FORMATS = {
     name: "Takeover Poster",
     w: 970, h: 250,
     format: "JPEG", maxKB: 200,
-    displayScale: 0.72,
     safeArea: null,
     notes: [
-      ["Dimensions","970 &times; 250 px"],
+      ["Dimensions","970 × 250 px"],
       ["Format","JPEG"],
       ["Max size","200 KB"],
       ["Rule","Utilize 100% of the ad space, no contained background"]
@@ -63,6 +59,7 @@ let offX = 0, offY = 0;
 let shellW = 0, shellH = 0;
 let baseScale = 1;
 let mode = 'manual';
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const formatButtonsEl = document.getElementById('formatButtons');
 const dropZone = document.getElementById('dropZone');
@@ -82,18 +79,32 @@ const resetBtn = document.getElementById('resetBtn');
 const safeToggle = document.getElementById('safeToggle');
 const qualityRow = document.getElementById('qualityRow');
 const sizeVal = document.getElementById('sizeVal');
+const statusBanner = document.getElementById('statusBanner');
+const fileInfo = document.getElementById('fileInfo');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+const shareBtn = document.getElementById('shareBtn');
 
 modeToggle.addEventListener('click', e => {
   const btn = e.target.closest('.mode-btn');
   if(!btn) return;
   mode = btn.dataset.mode;
-  [...modeToggle.children].forEach(b => b.classList.toggle('active', b === btn));
+  [...modeToggle.children].forEach(b => {
+    const active = b === btn;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
   zoomRow.style.display = mode === 'manual' ? 'flex' : 'none';
   modeHint.textContent = mode === 'manual'
     ? 'Drag inside the frame to reposition, use the slider to fill edge-to-edge.'
     : 'Image is centered automatically at full quality — nothing is cropped or zoomed. Extra space is softly filled so the frame stays full-bleed.';
   if(imgLoaded && currentFormat) setupShell();
 });
+
+function updateStatus(message, type = 'info'){
+  statusBanner.textContent = message;
+  statusBanner.classList.toggle('error', type === 'error');
+  statusBanner.classList.toggle('success', type === 'success');
+}
 
 function buildFormatButtons(){
   formatButtonsEl.innerHTML = '';
@@ -102,27 +113,31 @@ function buildFormatButtons(){
     btn.type = 'button';
     btn.className = 'fmt-btn';
     btn.dataset.key = key;
+    btn.setAttribute('aria-pressed', 'false');
     btn.innerHTML = `<div class="fmt-name">${f.name}</div><div class="fmt-dims">${f.w}&times;${f.h}px &middot; ${f.maxKB}KB cap</div>`;
     btn.addEventListener('click', () => selectFormat(key));
     formatButtonsEl.appendChild(btn);
   });
+  selectFormat('banner');
 }
-buildFormatButtons();
 
 function selectFormat(key){
   currentFormat = key;
   [...formatButtonsEl.children].forEach(b => b.classList.toggle('active', b.dataset.key === key));
+  [...formatButtonsEl.children].forEach(b => b.setAttribute('aria-pressed', b.dataset.key === key ? 'true' : 'false'));
   const f = FORMATS[key];
-  specTitle.innerHTML = f.name;
-  specTitle.setAttribute('aria-live', 'polite');
+  specTitle.textContent = f.name;
   specList.innerHTML = f.notes.map(([k,v]) => `<li><b>${k}:</b> ${v}</li>`).join('');
   safeToggle.parentElement.style.display = f.safeArea ? 'flex' : 'none';
-
   if(imgLoaded){
     setupShell();
     downloadBtn.disabled = false;
     downloadBtn.textContent = `Download ${f.w}×${f.h} ${f.format}`;
   }
+}
+
+function isValidImage(file){
+  return file.type.startsWith('image/') && ['image/jpeg','image/png','image/webp'].includes(file.type);
 }
 
 dropZone.addEventListener('click', () => fileInput.click());
@@ -138,7 +153,15 @@ fileInput.addEventListener('change', e => {
 });
 
 function handleFile(file){
-  if(!file.type.startsWith('image/')) return;
+  if(!isValidImage(file)){
+    updateStatus('Only JPEG, PNG, and WEBP images are supported.', 'error');
+    return;
+  }
+  if(file.size > MAX_FILE_SIZE){
+    updateStatus('Please choose an image smaller than 10 MB.', 'error');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = ev => {
     img = new Image();
@@ -150,14 +173,12 @@ function handleFile(file){
       cropImgBg.src = ev.target.result;
       dropZone.style.display = 'none';
       cropArea.style.display = 'flex';
-      resetBtn.style.display = 'block';
-      if(!currentFormat){
-        selectFormat('banner');
-      } else {
-        setupShell();
-        downloadBtn.disabled = false;
-        downloadBtn.textContent = `Download ${FORMATS[currentFormat].w}×${FORMATS[currentFormat].h} ${FORMATS[currentFormat].format}`;
-      }
+      cropArea.setAttribute('aria-hidden', 'false');
+      resetBtn.hidden = false;
+      fileInfo.hidden = false;
+      fileInfo.innerHTML = `<strong>Image file:</strong> ${file.name}<br><strong>Original size:</strong> ${Math.round(file.size/1024)} KB<br><strong>Dimensions:</strong> ${natW} × ${natH} px`;
+      updateStatus('Image loaded. Choose a format and download your resized creative.', 'success');
+      selectFormat(currentFormat || 'banner');
     };
     img.src = ev.target.result;
   };
@@ -171,8 +192,8 @@ function setupShell(){
   if(f.w * dispScale > 640) dispScale = 640 / f.w;
   shellW = Math.round(f.w * dispScale);
   shellH = Math.round(f.h * dispScale);
-  cropShell.style.width = shellW + 'px';
-  cropShell.style.height = shellH + 'px';
+  cropShell.style.width = `${shellW}px`;
+  cropShell.style.height = `${shellH}px`;
 
   if(mode === 'manual'){
     cropImgBg.style.display = 'none';
@@ -187,14 +208,14 @@ function setupShell(){
     cropImgBg.style.display = 'block';
     const bgScale = Math.max(shellW / natW, shellH / natH) * 1.08;
     const bgW = natW * bgScale, bgH = natH * bgScale;
-    cropImgBg.style.width = bgW + 'px';
-    cropImgBg.style.height = bgH + 'px';
+    cropImgBg.style.width = `${bgW}px`;
+    cropImgBg.style.height = `${bgH}px`;
     cropImgBg.style.transform = `translate(${(shellW-bgW)/2}px, ${(shellH-bgH)/2}px)`;
 
     const containScale = Math.min(shellW / natW, shellH / natH);
     const fgW = natW * containScale, fgH = natH * containScale;
-    cropImg.style.width = fgW + 'px';
-    cropImg.style.height = fgH + 'px';
+    cropImg.style.width = `${fgW}px`;
+    cropImg.style.height = `${fgH}px`;
     cropImg.style.transform = `translate(${(shellW-fgW)/2}px, ${(shellH-fgH)/2}px)`;
   }
   renderSafeOverlay();
@@ -214,8 +235,8 @@ function applyImageTransform(center){
     offY = (shellH - dispH) / 2;
   }
   clampOffset(dispW, dispH);
-  cropImg.style.width = dispW + 'px';
-  cropImg.style.height = dispH + 'px';
+  cropImg.style.width = `${dispW}px`;
+  cropImg.style.height = `${dispH}px`;
   cropImg.style.transform = `translate(${offX}px, ${offY}px)`;
 }
 
@@ -230,7 +251,8 @@ zoomSlider.addEventListener('input', () => {
   const oldScale = baseScale * zoom;
   zoom = zoomSlider.value / 100;
   const newScale = baseScale * zoom;
-  const cx = shellW/2, cy = shellH/2;
+  const cx = shellW / 2;
+  const cy = shellH / 2;
   const imgCx = (cx - offX) / oldScale;
   const imgCy = (cy - offY) / oldScale;
   offX = cx - imgCx * newScale;
@@ -238,7 +260,7 @@ zoomSlider.addEventListener('input', () => {
   applyImageTransform(false);
 });
 
-let dragging = false, startX=0, startY=0, startOffX=0, startOffY=0;
+let dragging = false, startX = 0, startY = 0, startOffX = 0, startOffY = 0;
 function dragStart(x,y){
   if(mode !== 'manual') return;
   dragging = true;
@@ -251,7 +273,7 @@ function dragMove(x,y){
   offX = startOffX + (x - startX);
   offY = startOffY + (y - startY);
   const scale = baseScale * zoom;
-  clampOffset(natW*scale, natH*scale);
+  clampOffset(natW * scale, natH * scale);
   cropImg.style.transform = `translate(${offX}px, ${offY}px)`;
 }
 function dragEnd(){ dragging = false; cropShell.classList.remove('dragging'); }
@@ -259,12 +281,8 @@ function dragEnd(){ dragging = false; cropShell.classList.remove('dragging'); }
 cropShell.addEventListener('mousedown', e => dragStart(e.clientX, e.clientY));
 window.addEventListener('mousemove', e => dragMove(e.clientX, e.clientY));
 window.addEventListener('mouseup', dragEnd);
-cropShell.addEventListener('touchstart', e => {
-  const t = e.touches[0]; dragStart(t.clientX, t.clientY);
-}, {passive:true});
-cropShell.addEventListener('touchmove', e => {
-  const t = e.touches[0]; dragMove(t.clientX, t.clientY);
-}, {passive:true});
+cropShell.addEventListener('touchstart', e => { const t = e.touches[0]; dragStart(t.clientX, t.clientY); }, {passive:true});
+cropShell.addEventListener('touchmove', e => { const t = e.touches[0]; dragMove(t.clientX, t.clientY); }, {passive:true});
 cropShell.addEventListener('touchend', dragEnd);
 
 function renderSafeOverlay(){
@@ -273,7 +291,7 @@ function renderSafeOverlay(){
   const f = FORMATS[currentFormat];
   if(!f.safeArea || !safeToggle.checked) return;
   const scale = shellW / f.w;
-  const {top,bottom,left,right} = f.safeArea;
+  const {left,right} = f.safeArea;
   overlay = document.createElement('div');
   overlay.className = 'safe-overlay';
   overlay.innerHTML = `
@@ -288,11 +306,16 @@ safeToggle.addEventListener('change', renderSafeOverlay);
 resetBtn.addEventListener('click', () => {
   imgLoaded = false;
   cropArea.style.display = 'none';
+  cropArea.setAttribute('aria-hidden', 'true');
   dropZone.style.display = 'block';
-  resetBtn.style.display = 'none';
+  resetBtn.hidden = true;
   downloadBtn.disabled = true;
   downloadBtn.textContent = 'Upload an image first';
   fileInput.value = '';
+  fileInfo.hidden = true;
+  fileInfo.innerHTML = '';
+  qualityRow.hidden = true;
+  updateStatus('Upload another image when you are ready.');
 });
 
 window.addEventListener('resize', () => { if(imgLoaded && currentFormat) setupShell(); });
@@ -344,14 +367,73 @@ function exportWithSizeCap(canvas, f){
     attempts++;
   }
 
-  qualityRow.style.display = 'flex';
+  qualityRow.hidden = false;
   const kb = (bytes/1024).toFixed(0);
   const qLabel = quality >= 0.95 ? 'full quality' : `quality ${(quality*100).toFixed(0)}%`;
   sizeVal.textContent = `${kb} KB (${qLabel})`;
   sizeVal.className = 'val ' + (bytes <= capBytes ? 'ok' : 'over');
+  updateStatus(bytes <= capBytes ? 'Ready to download. The output meets the file cap.' : 'Download ready, but the file is slightly over the cap.', bytes <= capBytes ? 'success' : 'error');
 
   const link = document.createElement('a');
   link.download = `fence_${currentFormat}_${mode}_${f.w}x${f.h}.jpg`;
   link.href = dataUrl;
   link.click();
 }
+
+function copyPageLink(){
+  const url = window.location.href;
+  const copy = text => navigator.clipboard?.writeText(text) || new Promise((resolve, reject) => {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      resolve();
+    } catch (err) {
+      reject(err);
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  });
+
+  copy(url)
+    .then(() => {
+      updateStatus('Page link copied to clipboard. Share it with your team.','success');
+      copyLinkBtn.textContent = 'Link copied!';
+      setTimeout(() => { copyLinkBtn.textContent = 'Copy page link'; }, 2000);
+    })
+    .catch(() => {
+      updateStatus('Unable to copy the link. Please use your browser address bar.', 'error');
+    });
+}
+
+function promptNativeShare(){
+  if(!navigator.share){
+    updateStatus('Native share is not available in this browser. Copy the link instead.','error');
+    return;
+  }
+
+  navigator.share({
+    title: 'Fence Creative Resizer',
+    text: 'Resize Fence ad creatives to exact specs with this tool.',
+    url: window.location.href
+  }).catch(err => {
+    if(err?.name !== 'AbortError'){
+      updateStatus('Share failed. Copy the link and try again.','error');
+    }
+  });
+}
+
+copyLinkBtn.addEventListener('click', copyPageLink);
+shareBtn.addEventListener('click', promptNativeShare);
+
+if(!navigator.share){
+  shareBtn.style.opacity = '0.64';
+  shareBtn.style.cursor = 'not-allowed';
+}
+
+buildFormatButtons();

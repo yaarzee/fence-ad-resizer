@@ -1,74 +1,98 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fence Creative Resizer</title>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fence Creative Resizer</title>
+  <meta name="description" content="Resize and export Fence ad creatives to exact dimensions and file size specifications.">
+  <meta property="og:title" content="Fence Creative Resizer">
+  <meta property="og:description" content="Resize and export Fence ad creatives to exact dimensions and file size specifications.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#16181F">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="eyebrow">JioHotstar &middot; Fence Ads 2025</div>
-    <h1>Creative Resizer</h1>
-    <p>Upload one image, pick an ad unit, then drag &amp; zoom to fill the exact frame. Export lands within spec &mdash; right dimensions, right format, right file size.</p>
-    <p id="pageInstructions" class="sr-only">Use the upload button or drag and drop an image. Select a format, then choose a crop mode and download your ad creative.</p>
-  </header>
+  <div class="wrap">
+    <header>
+      <div class="share-banner">Share this live tool with your team — copy the link below or use the share button on mobile.</div>
+      <div class="eyebrow">JioHotstar &middot; Fence Ads</div>
+      <h1>Creative Resizer</h1>
+      <p>Upload one image, pick an ad unit, then drag &amp; zoom to fill the exact frame. Export lands within spec &mdash; right dimensions, right format, right file size.</p>
+      <p id="pageInstructions" class="sr-only">Use the upload button or drag and drop an image. Select a format, then choose a crop mode and download your ad creative.</p>
+    </header>
 
-  <div class="formats" id="formatButtons" role="group" aria-label="Ad format selector"></div>
+    <main>
+      <div class="formats" id="formatButtons" role="group" aria-label="Ad format selector"></div>
 
-  <div class="stage">
-    <div class="canvas-panel">
-      <button type="button" class="drop" id="dropZone" aria-describedby="pageInstructions">
-        <strong>Click to upload</strong> or drag an image here<br>JPG or PNG, any size &mdash; we'll crop it to fit.
-      </button>
-      <input type="file" id="fileInput" accept="image/*" style="display:none;">
-      <div id="cropArea" style="display:none;width:100%;display:flex;flex-direction:column;align-items:center;">
-        <div class="mode-toggle" id="modeToggle">
-          <button class="mode-btn active" data-mode="manual">Fill &middot; crop &amp; zoom</button>
-          <button class="mode-btn" data-mode="auto">Auto-fit &middot; centered, no zoom</button>
-        </div>
-        <div class="crop-shell" id="cropShell">
-          <img id="cropImgBg" src="" alt="" class="bg-blur">
-          <img id="cropImg" src="" alt="">
-        </div>
-        <div class="controls-row" id="zoomRow">
-          <label for="zoomSlider">Zoom</label>
-          <input type="range" id="zoomSlider" min="100" max="400" value="100">
-        </div>
-        <p class="mode-hint" id="modeHint">Drag inside the frame to reposition, use the slider to fill edge-to-edge.</p>
+      <div class="stage">
+        <section class="canvas-panel">
+          <button type="button" class="drop" id="dropZone" aria-describedby="pageInstructions">
+            <strong>Click to upload</strong> or drag an image here<br>JPEG, PNG or WEBP
+          </button>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+
+          <div id="cropArea" class="crop-area" aria-hidden="true">
+            <div class="mode-toggle" id="modeToggle" role="toolbar" aria-label="Crop mode">
+              <button class="mode-btn active" type="button" data-mode="manual" aria-pressed="true">Fill &middot; crop &amp; zoom</button>
+              <button class="mode-btn" type="button" data-mode="auto" aria-pressed="false">Auto-fit &middot; centered, no zoom</button>
+            </div>
+
+            <div class="crop-shell" id="cropShell" aria-label="Image crop preview">
+              <img id="cropImgBg" src="" alt="Blurred background" class="bg-blur">
+              <img id="cropImg" src="" alt="Uploaded image preview">
+            </div>
+
+            <div class="controls-row" id="zoomRow">
+              <label for="zoomSlider">Zoom</label>
+              <input type="range" id="zoomSlider" min="100" max="400" value="100">
+            </div>
+            <p class="mode-hint" id="modeHint">Drag inside the frame to reposition, use the slider to fill edge-to-edge.</p>
+          </div>
+        </section>
+
+        <aside class="side-panel">
+          <div>
+            <div class="spec-title" id="specTitle">Select a format</div>
+            <ul class="spec-list" id="specList"></ul>
+          </div>
+
+          <div class="safe-toggle">
+            <input type="checkbox" id="safeToggle" checked>
+            <label for="safeToggle">Show safe-area guide (Banner only)</label>
+          </div>
+
+          <div class="status-banner" id="statusBanner" role="status" aria-live="polite">Ready to upload your first image.</div>
+          <div class="file-info" id="fileInfo" hidden></div>
+
+          <div class="quality-row" id="qualityRow" hidden>
+            <label>JPEG quality (auto-tuned to hit the file size cap)</label>
+            <div class="size-readout">
+              <span class="label">Estimated file size</span>
+              <span class="val" id="sizeVal">&mdash;</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="downloadBtn" disabled>Upload an image first</button>
+          <button class="btn btn-ghost" id="resetBtn" hidden>Start over</button>
+
+          <div class="share-panel">
+            <div class="share-title">Share this tool</div>
+            <div class="share-actions">
+              <button class="btn btn-ghost" id="copyLinkBtn" type="button">Copy page link</button>
+              <button class="btn btn-ghost" id="shareBtn" type="button">Share</button>
+            </div>
+            <p class="share-note">Send the link to your team or use the native share sheet on mobile.</p>
+          </div>
+
+          <div class="hint">Tip: drag inside the frame to reposition, use the zoom slider to fill edge-to-edge. Nothing important should sit in the <b>safe area</b> margins on Banner ads.</div>
+        </aside>
       </div>
-    </div>
+    </main>
 
-    <div class="side-panel">
-      <div>
-        <div class="spec-title" id="specTitle">Select a format</div>
-        <ul class="spec-list" id="specList"></ul>
-      </div>
-
-      <div class="safe-toggle">
-        <input type="checkbox" id="safeToggle" checked>
-        <label for="safeToggle">Show safe-area guide (Banner only)</label>
-      </div>
-
-      <div class="quality-row" id="qualityRow" style="display:none;">
-        <label>JPEG quality (auto-tuned to hit the file size cap)</label>
-        <div class="size-readout">
-          <span class="label">Estimated file size</span>
-          <span class="val" id="sizeVal">&mdash;</span>
-        </div>
-      </div>
-
-      <button class="btn btn-primary" id="downloadBtn" disabled>Upload an image first</button>
-      <button class="btn btn-ghost" id="resetBtn" style="display:none;">Start over</button>
-
-      <div class="hint">Tip: drag inside the frame to reposition, use the zoom slider to fill edge-to-edge. Nothing important should sit in the <b>safe area</b> margins on Banner ads.</div>
-    </div>
+    <footer>Specs sourced from Fence creative guidelines &middot; Banner 640&times;100 &middot; Logo 120&times;120 &middot; Carousel Card 440&times;440 &middot; Takeover Poster 970&times;250</footer>
   </div>
 
-  <footer>Specs sourced from Fence 2025 creative guidelines &middot; Banner 640&times;100 &middot; Logo 120&times;120 &middot; Carousel Card 440&times;440 &middot; Takeover Poster 970&times;250</footer>
-</div>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
