@@ -59,6 +59,7 @@ let offX = 0, offY = 0;
 let shellW = 0, shellH = 0;
 let baseScale = 1;
 let mode = 'manual';
+let selectedQuality = 0.97;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
@@ -79,6 +80,8 @@ const downloadBtn = document.getElementById('downloadBtn');
 const resetBtn = document.getElementById('resetBtn');
 const safeToggle = document.getElementById('safeToggle');
 const qualityRow = document.getElementById('qualityRow');
+const qualitySlider = document.getElementById('qualitySlider');
+const qualityLabel = document.getElementById('qualityLabel');
 const sizeVal = document.getElementById('sizeVal');
 const statusBanner = document.getElementById('statusBanner');
 const fileInfo = document.getElementById('fileInfo');
@@ -178,6 +181,7 @@ function handleFile(file){
       resetBtn.hidden = false;
       fileInfo.hidden = false;
       fileInfo.innerHTML = `<strong>Image file:</strong> ${file.name}<br><strong>Original size:</strong> ${Math.round(file.size/1024)} KB<br><strong>Dimensions:</strong> ${natW} × ${natH} px`;
+      qualityRow.hidden = false;
       updateStatus('Image loaded. Choose a format and download your resized creative.', 'success');
       selectFormat(currentFormat || 'banner');
     };
@@ -303,6 +307,13 @@ function renderSafeOverlay(){
 }
 
 safeToggle.addEventListener('change', renderSafeOverlay);
+qualitySlider.addEventListener('input', () => {
+  selectedQuality = qualitySlider.value / 100;
+  qualityLabel.textContent = `${qualitySlider.value}%`;
+  if(imgLoaded){
+    updateStatus(`Export quality set to ${qualitySlider.value}%. Higher quality may increase the file size.`, 'info');
+  }
+});
 
 resetBtn.addEventListener('click', () => {
   imgLoaded = false;
@@ -355,7 +366,7 @@ downloadBtn.addEventListener('click', () => {
 });
 
 function exportWithSizeCap(canvas, f){
-  let quality = 0.97;
+  let quality = Math.min(Math.max(selectedQuality, 0.6), 1);
   let dataUrl = canvas.toDataURL('image/jpeg', quality);
   let bytes = Math.round((dataUrl.length - 22) * 3/4);
   const capBytes = f.maxKB * 1024;

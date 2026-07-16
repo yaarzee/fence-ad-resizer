@@ -66,7 +66,11 @@
           <div class="file-info" id="fileInfo" hidden></div>
 
           <div class="quality-row" id="qualityRow" hidden>
-            <label>JPEG quality (auto-tuned to hit the file size cap)</label>
+            <label for="qualitySlider">Export quality</label>
+            <div class="quality-input">
+              <input type="range" id="qualitySlider" min="60" max="100" value="97">
+              <span id="qualityLabel">97%</span>
+            </div>
             <div class="size-readout">
               <span class="label">Estimated file size</span>
               <span class="val" id="sizeVal">&mdash;</span>
