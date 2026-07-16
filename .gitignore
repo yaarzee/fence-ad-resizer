@@ -1,0 +1,10 @@
+# Ignore editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Node artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
