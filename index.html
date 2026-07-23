@@ -296,6 +296,46 @@
                         </div>
                     </div>
 
+                    <div class="enhancer-panel" id="enhancerPanel" hidden style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+                        <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                            ✨ Image Enhancer
+                        </div>
+                        
+                        <button type="button" class="btn btn-ghost" id="autoEnhanceBtn" style="padding: 8px 12px; font-size: 12px; background: rgba(31, 81, 255, 0.1); border-color: rgba(31, 81, 255, 0.3); color: #3bc9ff;">Auto-Enhance Preset</button>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #a1a1aa;">
+                                <label for="sharpenSlider">Sharpen Crispness</label>
+                                <span id="sharpenVal">Off</span>
+                            </div>
+                            <input type="range" id="sharpenSlider" min="0" max="100" value="0" style="accent-color: #1f51ff;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #a1a1aa;">
+                                <label for="contrastSlider">Contrast</label>
+                                <span id="contrastVal">100%</span>
+                            </div>
+                            <input type="range" id="contrastSlider" min="50" max="150" value="100" style="accent-color: #1f51ff;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #a1a1aa;">
+                                <label for="brightnessSlider">Brightness</label>
+                                <span id="brightnessVal">100%</span>
+                            </div>
+                            <input type="range" id="brightnessSlider" min="50" max="150" value="100" style="accent-color: #1f51ff;">
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #a1a1aa;">
+                                <label for="saturationSlider">Color Saturation</label>
+                                <span id="saturationVal">100%</span>
+                            </div>
+                            <input type="range" id="saturationSlider" min="50" max="150" value="100" style="accent-color: #1f51ff;">
+                        </div>
+                    </div>
+
                     <button class="btn btn-primary" id="downloadBtn" disabled>Upload an asset first</button>
                     <button class="btn btn-ghost" id="resetBtn" hidden>Start over</button>
 
@@ -527,6 +567,54 @@
             const fileInfo = document.getElementById('fileInfo');
             const copyLinkBtn = document.getElementById('copyLinkBtn');
 
+            // Image Enhancer Variables & Listeners
+            const enhancerPanel = document.getElementById('enhancerPanel');
+            const autoEnhanceBtn = document.getElementById('autoEnhanceBtn');
+            const sharpenSlider = document.getElementById('sharpenSlider');
+            const sharpenVal = document.getElementById('sharpenVal');
+            const contrastSlider = document.getElementById('contrastSlider');
+            const contrastVal = document.getElementById('contrastVal');
+            const brightnessSlider = document.getElementById('brightnessSlider');
+            const brightnessVal = document.getElementById('brightnessVal');
+            const saturationSlider = document.getElementById('saturationSlider');
+            const saturationVal = document.getElementById('saturationVal');
+
+            let sharpenAmount = 0;
+            let contrastAmount = 100;
+            let brightnessAmount = 100;
+            let saturationAmount = 100;
+
+            function updateFilters() {
+                sharpenAmount = parseFloat(sharpenSlider.value) / 100;
+                sharpenVal.textContent = sharpenAmount > 0 ? `${Math.round(sharpenAmount * 100)}%` : 'Off';
+
+                contrastAmount = parseInt(contrastSlider.value);
+                contrastVal.textContent = `${contrastAmount}%`;
+
+                brightnessAmount = parseInt(brightnessSlider.value);
+                brightnessVal.textContent = `${brightnessAmount}%`;
+
+                saturationAmount = parseInt(saturationSlider.value);
+                saturationVal.textContent = `${saturationAmount}%`;
+
+                // Update real-time preview style on the image element
+                cropImg.style.filter = `brightness(${brightnessAmount}%) contrast(${contrastAmount}%) saturate(${saturationAmount}%)`;
+            }
+
+            sharpenSlider.addEventListener('input', updateFilters);
+            contrastSlider.addEventListener('input', updateFilters);
+            brightnessSlider.addEventListener('input', updateFilters);
+            saturationSlider.addEventListener('input', updateFilters);
+
+            autoEnhanceBtn.addEventListener('click', () => {
+                // Preset for sharpening, colors and contrast pop
+                sharpenSlider.value = 40;
+                contrastSlider.value = 112;
+                brightnessSlider.value = 103;
+                saturationSlider.value = 110;
+                updateFilters();
+            });
+
             modeToggle.addEventListener('click', e => {
                 const btn = e.target.closest('.mode-btn');
                 if(!btn) return;
@@ -578,6 +666,7 @@
                     zoomRow.style.display = 'none';
                     safeToggleWrap.style.display = 'none';
                     qualityRow.hidden = true;
+                    enhancerPanel.hidden = true;
                     if(videoLoaded){
                         downloadBtn.disabled = false;
                         downloadBtn.textContent = `Normalize & Download 25.00 FPS MP4`;
@@ -598,11 +687,14 @@
                         downloadBtn.disabled = false;
                         downloadBtn.textContent = `Download ${f.w}×${f.h} ${f.format}`;
                         qualityRow.hidden = false;
+                        enhancerPanel.hidden = false;
                     } else {
                         dropZone.style.display = 'block';
                         cropArea.style.display = 'none';
                         downloadBtn.disabled = true;
                         downloadBtn.textContent = 'Upload an image first';
+                        qualityRow.hidden = true;
+                        enhancerPanel.hidden = true;
                     }
                 }
             }
@@ -808,6 +900,15 @@
                 }
                 resetBtn.hidden = true; downloadBtn.disabled = true; downloadBtn.textContent = 'Upload an asset first';
                 fileInput.value = ''; videoFileInput.value = ''; fileInfo.hidden = true; qualityRow.hidden = true;
+                
+                // Reset Enhancer Panel
+                sharpenSlider.value = 0;
+                contrastSlider.value = 100;
+                brightnessSlider.value = 100;
+                saturationSlider.value = 100;
+                updateFilters();
+                enhancerPanel.hidden = true;
+                
                 updateStatus('Reset completed.');
             });
 
@@ -895,6 +996,9 @@
                 const ctx = canvas.getContext('2d');
                 ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
 
+                // Set filters
+                ctx.filter = `brightness(${brightnessAmount}%) contrast(${contrastAmount}%) saturate(${saturationAmount}%)`;
+
                 if(mode === 'manual'){
                     const scale = baseScale * zoom;
                     ctx.drawImage(img, -offX / scale, -offY / scale, shellW / scale, shellH / scale, 0, 0, f.w, f.h);
@@ -903,8 +1007,41 @@
                     ctx.save(); ctx.filter = 'blur(14px) brightness(0.55) saturate(1.1)';
                     ctx.drawImage(img, (f.w - natW * bgScale) / 2, (f.h - natH * bgScale) / 2, natW * bgScale, natH * bgScale);
                     ctx.restore();
+                    // Re-apply filters for the foreground contain draw
+                    ctx.filter = `brightness(${brightnessAmount}%) contrast(${contrastAmount}%) saturate(${saturationAmount}%)`;
                     const containScale = Math.min(f.w / natW, f.h / natH);
                     ctx.drawImage(img, (f.w - natW * containScale) / 2, (f.h - natH * containScale) / 2, natW * containScale, natH * containScale);
+                }
+
+                // Apply custom 3x3 pixel sharpen convolution filter if sharpenAmount is set
+                if (sharpenAmount > 0) {
+                    try {
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imgData.data;
+                        const copy = new Uint8ClampedArray(data);
+                        const w = canvas.width;
+                        const h = canvas.height;
+                        const a = sharpenAmount * 0.4; // subtle scaling for crisp but natural sharpen
+                        const b = 1 + 4 * a;
+
+                        for (let y = 1; y < h - 1; y++) {
+                            for (let x = 1; x < w - 1; x++) {
+                                const idx = (y * w + x) * 4;
+                                for (let c = 0; c < 3; c++) {
+                                    const val = 
+                                        b * copy[idx + c] -
+                                        a * copy[((y - 1) * w + x) * 4 + c] -
+                                        a * copy[((y + 1) * w + x) * 4 + c] -
+                                        a * copy[(y * w + (x - 1)) * 4 + c] -
+                                        a * copy[(y * w + (x + 1)) * 4 + c];
+                                    data[idx + c] = Math.min(255, Math.max(0, val));
+                                }
+                            }
+                        }
+                        ctx.putImageData(imgData, 0, 0);
+                    } catch (e) {
+                        console.warn("Sharpen filter skipped due to canvas security settings:", e);
+                    }
                 }
 
                 let quality = Math.min(Math.max(selectedQuality, 0.6), 1);
