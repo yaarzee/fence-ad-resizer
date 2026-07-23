@@ -195,6 +195,10 @@
         .fake-thumb { width: 130px; height: 74px; background-color: #1a1a24; border-radius: 4px; }
         .fake-text { flex-grow: 1; padding-top: 4px; }
         .fake-line { height: 10px; background-color: #2a2a35; border-radius: 4px; margin-bottom: 10px; }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -233,9 +237,13 @@
                             <button class="mode-btn" type="button" data-mode="auto" aria-pressed="false">Auto-fit &middot; centered, no zoom</button>
                         </div>
 
-                        <div class="crop-shell" id="cropShell" aria-label="Image crop preview">
+                        <div class="crop-shell" id="cropShell" aria-label="Image crop preview" style="position: relative;">
                             <img id="cropImgBg" crossorigin="anonymous" src="" alt="Blurred background" class="bg-blur">
                             <img id="cropImg" crossorigin="anonymous" src="" alt="Uploaded image preview">
+                            <div class="canvas-loader" id="canvasLoader" hidden style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 16, 20, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; z-index: 10;">
+                                <div class="spinner" style="width: 36px; height: 36px; border: 3.5px solid rgba(31, 81, 255, 0.2); border-top: 3.5px solid #1f51ff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                <div class="loader-text" id="loaderText" style="font-size: 13px; color: #fff; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">AI is enhancing image...</div>
+                            </div>
                         </div>
 
                         <div class="controls-row" id="zoomRow">
@@ -334,6 +342,8 @@
                             </div>
                             <input type="range" id="saturationSlider" min="50" max="150" value="100" style="accent-color: #1f51ff;">
                         </div>
+
+                        <button type="button" class="btn btn-ghost" id="aiEnhanceBtn" style="padding: 8px 12px; font-size: 12px; background: rgba(120, 56, 255, 0.1); border-color: rgba(120, 56, 255, 0.3); color: #c084fc; margin-top: 4px;">✨ AI Super-Resolution (Gemini)</button>
                     </div>
 
                     <button class="btn btn-primary" id="downloadBtn" disabled>Upload an asset first</button>
@@ -579,6 +589,9 @@
             const saturationSlider = document.getElementById('saturationSlider');
             const saturationVal = document.getElementById('saturationVal');
 
+            const aiEnhanceBtn = document.getElementById('aiEnhanceBtn');
+            const canvasLoader = document.getElementById('canvasLoader');
+
             let sharpenAmount = 0;
             let contrastAmount = 100;
             let brightnessAmount = 100;
@@ -613,6 +626,83 @@
                 brightnessSlider.value = 103;
                 saturationSlider.value = 110;
                 updateFilters();
+            });
+
+            aiEnhanceBtn.addEventListener('click', async () => {
+                if (!imgLoaded) return;
+                
+                aiEnhanceBtn.disabled = true;
+                canvasLoader.hidden = false;
+                updateStatus('AI is enhancing image quality & resolution...', 'info');
+
+                try {
+                    // Render the current crop area to a canvas at a higher resolution (e.g. 1200px width)
+                    const canvas = document.createElement('canvas');
+                    const targetW = 1200;
+                    const targetH = Math.round(1200 * (FORMATS[currentFormat].h / FORMATS[currentFormat].w));
+                    canvas.width = targetW;
+                    canvas.height = targetH;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    if (mode === 'manual') {
+                        const scale = baseScale * zoom;
+                        ctx.drawImage(img, -offX / scale, -offY / scale, shellW / scale, shellH / scale, 0, 0, targetW, targetH);
+                    } else {
+                        const bgScale = Math.max(targetW / natW, targetH / natH) * 1.08;
+                        ctx.save();
+                        ctx.filter = 'blur(14px) brightness(0.55) saturate(1.1)';
+                        ctx.drawImage(img, (targetW - natW * bgScale) / 2, (targetH - natH * bgScale) / 2, natW * bgScale, natH * bgScale);
+                        ctx.restore();
+                        const containScale = Math.min(targetW / natW, targetH / natH);
+                        ctx.drawImage(img, (targetW - natW * containScale) / 2, (targetH - natH * containScale) / 2, natW * containScale, natH * containScale);
+                    }
+
+                    const base64Img = canvas.toDataURL('image/jpeg', 0.95);
+
+                    // Send the base64 cropped image to our Python API backend
+                    const response = await fetch('/api/edit-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: 'Clean up pixelation and compression artifacts, sharpen details, enhance contrast, and upscale this image to high-resolution. Make it look pristine.',
+                            image: base64Img
+                        })
+                    });
+
+                    const res = await response.json();
+                    if (!response.ok || res.error) {
+                        throw new Error(res.error || 'Server error enhancing image.');
+                    }
+
+                    // Load the newly enhanced image back into our preview
+                    const enhancedImg = new Image();
+                    enhancedImg.crossOrigin = 'anonymous';
+                    enhancedImg.onload = function() {
+                        img = enhancedImg;
+                        natW = enhancedImg.naturalWidth;
+                        natH = enhancedImg.naturalHeight;
+                        
+                        cropImg.src = res.image;
+                        cropImgBg.src = res.image;
+                        
+                        // Recalculate crop parameters with new natural size
+                        setupShell();
+                        
+                        canvasLoader.hidden = true;
+                        aiEnhanceBtn.disabled = false;
+                        updateStatus('AI enhancement complete! Details sharpened.', 'success');
+                    };
+                    enhancedImg.src = res.image;
+
+                } catch (err) {
+                    console.error("AI Enhance Error:", err);
+                    canvasLoader.hidden = true;
+                    aiEnhanceBtn.disabled = false;
+                    updateStatus(`Enhancement failed: ${err.message || 'Check local server status'}`, 'error');
+                }
             });
 
             modeToggle.addEventListener('click', e => {
