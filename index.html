@@ -234,8 +234,8 @@
                         </div>
 
                         <div class="crop-shell" id="cropShell" aria-label="Image crop preview">
-                            <img id="cropImgBg" src="" alt="Blurred background" class="bg-blur">
-                            <img id="cropImg" src="" alt="Uploaded image preview">
+                            <img id="cropImgBg" crossorigin="anonymous" src="" alt="Blurred background" class="bg-blur">
+                            <img id="cropImg" crossorigin="anonymous" src="" alt="Uploaded image preview">
                         </div>
 
                         <div class="controls-row" id="zoomRow">
@@ -635,6 +635,7 @@
                 proxyImage.crossOrigin = 'anonymous';
                 
                 proxyImage.onload = function() {
+                    img = proxyImage;
                     natW = proxyImage.naturalWidth;
                     natH = proxyImage.naturalHeight;
                     imgLoaded = true;
