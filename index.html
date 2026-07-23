@@ -949,14 +949,21 @@
                             video: {
                                 codec: 'avc',
                                 width: 1920,
-                                height: 1080
+                                height: 1080,
+                                frameRate: 25
                             },
                             fastStart: 'in-memory'
                         });
 
                         // Configure VideoEncoder
                         const encoder = new VideoEncoder({
-                            output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
+                            output: (chunk, metadata) => {
+                                muxer.addVideoChunk(chunk, {
+                                    ...metadata,
+                                    timestamp: chunk.timestamp,
+                                    duration: 40000 // force exactly 40ms frame duration (40000 microseconds)
+                                });
+                            },
                             error: (e) => console.error("WebCodecs encoder error:", e)
                         });
 
