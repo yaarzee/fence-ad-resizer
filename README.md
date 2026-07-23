@@ -33,3 +33,12 @@ A static HTML/CSS/JS tool for resizing ad creatives.
 - No backend is required.
 - The site is fully static and works in any modern browser.
 - You can update the repo and Cloudflare Pages will redeploy automatically.
+
+## AI Features & Image Enhancer (Optional)
+
+To enable the AI Image Enhancer on your Cloudflare Pages deployment:
+1. Go to your Pages project settings on the Cloudflare Dashboard.
+2. Select **Settings** > **Environment variables**.
+3. Add a variable named `GEMINI_API_KEY` with your Google Gemini API key (Type: "Secret" or "Plain text").
+4. Redeploy/Push to trigger the build.
+
