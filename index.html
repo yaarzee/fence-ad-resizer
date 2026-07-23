@@ -7,6 +7,8 @@
     
     <!-- Load html2canvas for Export feature -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Load mp4-muxer for constant 25.00 FPS export -->
+    <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.min.js"></script>
 
     <style>
         /* Modern Reset & Typography */
@@ -924,74 +926,129 @@
                 if(f.type === 'video'){
                     if(!videoLoaded || !videoFileObj) return;
                     downloadBtn.disabled = true;
-                    updateStatus('Processing strict 25.00 FPS MP4 stream...', 'info');
+                    updateStatus('Initializing exact 25.00 FPS CFR MP4 encoder...', 'info');
+
+                    if (typeof VideoEncoder === 'undefined') {
+                        alert("WebCodecs (VideoEncoder) is not supported in this browser. Please use Chrome, Edge, or Safari.");
+                        downloadBtn.disabled = false;
+                        updateStatus('Export failed: Browser not supported.', 'error');
+                        return;
+                    }
 
                     const ctx = hiddenCanvas.getContext('2d');
-                    resizerVideoPreview.currentTime = 0;
-                    resizerVideoPreview.muted = false;
-
                     const maxAllowed = parseInt(maxDurationSelect.value);
                     const targetDuration = Math.min(resizerVideoPreview.duration, maxAllowed);
 
                     try {
-                        await resizerVideoPreview.play();
-                        const stream = hiddenCanvas.captureStream(25);
+                        // Pause preview, seek manually frame-by-frame
+                        resizerVideoPreview.pause();
+
+                        // Configure mp4-muxer
+                        const muxer = new Mp4Muxer.Muxer({
+                            target: new Mp4Muxer.ArrayBufferTarget(),
+                            video: {
+                                codec: 'avc',
+                                width: 1920,
+                                height: 1080
+                            },
+                            fastStart: 'in-memory'
+                        });
+
+                        // Configure VideoEncoder
+                        const encoder = new VideoEncoder({
+                            output: (chunk, metadata) => muxer.addVideoChunk(chunk, metadata),
+                            error: (e) => console.error("WebCodecs encoder error:", e)
+                        });
+
+                        encoder.configure({
+                            codec: 'avc1.4d002a', // H.264 Main Profile Level 4.2
+                            width: 1920,
+                            height: 1080,
+                            bitrate: 4_500_000, // 4.5 Mbps high quality
+                            framerate: 25,
+                            latencyMode: 'quality'
+                        });
+
+                        const fps = 25;
+                        const frameDuration = 1 / fps; // 0.04 seconds
+                        const totalFrames = Math.floor(targetDuration * fps);
                         
-                        let recordedChunks = [];
-                        let options = { mimeType: 'video/mp4;codecs=avc1,mp4a.40.2' };
-                        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                            options = { mimeType: 'video/mp4' };
-                        }
+                        let currentFrame = 0;
 
-                        let recorder;
-                        try {
-                            recorder = new MediaRecorder(stream, options);
-                        } catch (e) {
-                            recorder = new MediaRecorder(stream);
-                        }
+                        // Seek and render each frame sequentially
+                        const processNextFrame = async () => {
+                            if (currentFrame >= totalFrames) {
+                                // Done! Flush and finalize
+                                updateStatus('Wrapping up MP4 container file...', 'info');
+                                await encoder.flush();
+                                muxer.finalize();
+                                
+                                const { buffer } = muxer.target;
+                                const blob = new Blob([buffer], { type: 'video/mp4' });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `jiohotstar_normalized_1920x1080_25fps.mp4`;
+                                link.click();
 
-                        recorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                        recorder.onstop = () => {
-                            const blob = new Blob(recordedChunks, { type: 'video/mp4' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `jiohotstar_normalized_1920x1080_25fps.mp4`;
-                            link.click();
-                            updateStatus('Export complete! Exact 25.00 FPS MP4 downloaded.', 'success');
-                            downloadBtn.disabled = false;
-                            downloadBtn.textContent = `Normalize & Download 25.00 FPS MP4`;
-                            resizerVideoPreview.pause();
-                        };
-
-                        recorder.start(50);
-
-                        function drawLoop() {
-                            if (resizerVideoPreview.ended || resizerVideoPreview.paused || resizerVideoPreview.currentTime >= targetDuration) {
-                                resizerVideoPreview.pause();
-                                recorder.stop();
+                                updateStatus('Export complete! Constant 25.00 FPS MP4 downloaded.', 'success');
+                                downloadBtn.disabled = false;
+                                downloadBtn.textContent = `Normalize & Download 25.00 FPS MP4`;
                                 return;
                             }
-                            ctx.fillStyle = '#000000';
-                            ctx.fillRect(0, 0, 1920, 1080);
 
-                            let vW = resizerVideoPreview.videoWidth;
-                            let vH = resizerVideoPreview.videoHeight;
-                            let hRatio = 1920 / vW;
-                            let vRatio = 1080 / vH;
-                            let ratio = Math.min(hRatio, vRatio);
-                            let centerShiftX = (1920 - vW * ratio) / 2;
-                            let centerShiftY = (1080 - vH * ratio) / 2;
+                            updateStatus(`Processing frame ${currentFrame + 1} of ${totalFrames} (${Math.round((currentFrame + 1) / totalFrames * 100)}%)...`, 'info');
 
-                            ctx.drawImage(resizerVideoPreview, 0, 0, vW, vH, centerShiftX, centerShiftY, vW * ratio, vH * ratio);
-                            requestAnimationFrame(drawLoop);
-                        }
-                        drawLoop();
+                            // Calculate exact time for this frame
+                            const targetTime = currentFrame * frameDuration;
+
+                            // Wait for the seeked event
+                            const onSeeked = () => {
+                                resizerVideoPreview.removeEventListener('seeked', onSeeked);
+
+                                // Clear background
+                                ctx.fillStyle = '#000000';
+                                ctx.fillRect(0, 0, 1920, 1080);
+
+                                // Draw video frame
+                                let vW = resizerVideoPreview.videoWidth;
+                                let vH = resizerVideoPreview.videoHeight;
+                                let hRatio = 1920 / vW;
+                                let vRatio = 1080 / vH;
+                                let ratio = Math.min(hRatio, vRatio);
+                                let centerShiftX = (1920 - vW * ratio) / 2;
+                                let centerShiftY = (1080 - vH * ratio) / 2;
+                                ctx.drawImage(resizerVideoPreview, 0, 0, vW, vH, centerShiftX, centerShiftY, vW * ratio, vH * ratio);
+
+                                // Create VideoFrame with exact 40ms timestamps (40000 microseconds)
+                                const timestampUs = currentFrame * 40000;
+                                const videoFrame = new VideoFrame(hiddenCanvas, {
+                                    timestamp: timestampUs,
+                                    duration: 40000
+                                });
+
+                                // Request keyframe every 50 frames (2 seconds)
+                                const isKeyframe = (currentFrame % 50 === 0);
+                                encoder.encode(videoFrame, { keyFrame: isKeyframe });
+                                videoFrame.close();
+
+                                currentFrame++;
+                                // Schedule next frame
+                                setTimeout(processNextFrame, 0);
+                            };
+
+                            resizerVideoPreview.addEventListener('seeked', onSeeked);
+                            resizerVideoPreview.currentTime = targetTime;
+                        };
+
+                        // Start frame loop
+                        processNextFrame();
 
                     } catch (err) {
                         console.error(err);
-                        updateStatus('Export failed. Please check browser permissions.', 'error');
+                        updateStatus('Export failed. Please check browser permissions or file.', 'error');
                         downloadBtn.disabled = false;
+                        downloadBtn.textContent = `Normalize & Download 25.00 FPS MP4`;
                     }
                     return;
                 }
