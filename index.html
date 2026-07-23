@@ -240,7 +240,7 @@
                         <div class="crop-shell" id="cropShell" aria-label="Image crop preview" style="position: relative;">
                             <img id="cropImgBg" crossorigin="anonymous" src="" alt="Blurred background" class="bg-blur">
                             <img id="cropImg" crossorigin="anonymous" src="" alt="Uploaded image preview">
-                            <div class="canvas-loader" id="canvasLoader" hidden style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 16, 20, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; z-index: 10;">
+                            <div class="canvas-loader" id="canvasLoader" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 16, 20, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; flex-direction: column; justify-content: center; align-items: center; gap: 16px; z-index: 10;">
                                 <div class="spinner" style="width: 36px; height: 36px; border: 3.5px solid rgba(31, 81, 255, 0.2); border-top: 3.5px solid #1f51ff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
                                 <div class="loader-text" id="loaderText" style="font-size: 13px; color: #fff; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">AI is enhancing image...</div>
                             </div>
@@ -632,7 +632,7 @@
                 if (!imgLoaded) return;
                 
                 aiEnhanceBtn.disabled = true;
-                canvasLoader.hidden = false;
+                canvasLoader.style.display = 'flex';
                 updateStatus('AI is enhancing image quality & resolution...', 'info');
 
                 try {
@@ -691,7 +691,7 @@
                         // Recalculate crop parameters with new natural size
                         setupShell();
                         
-                        canvasLoader.hidden = true;
+                        canvasLoader.style.display = 'none';
                         aiEnhanceBtn.disabled = false;
                         updateStatus('AI enhancement complete! Details sharpened.', 'success');
                     };
@@ -699,7 +699,7 @@
 
                 } catch (err) {
                     console.error("AI Enhance Error:", err);
-                    canvasLoader.hidden = true;
+                    canvasLoader.style.display = 'none';
                     aiEnhanceBtn.disabled = false;
                     updateStatus(`Enhancement failed: ${err.message || 'Check local server status'}`, 'error');
                 }
