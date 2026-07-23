@@ -246,7 +246,7 @@
 
                         <div class="controls-row" id="zoomRow">
                             <label for="zoomSlider">Zoom</label>
-                            <input type="range" id="zoomSlider" min="100" max="400" value="100">
+                            <input type="range" id="zoomSlider" min="10" max="400" value="100">
                         </div>
                         <p class="hint" id="modeHint" style="margin-top:12px">Drag inside the frame to reposition, use the slider to fill edge-to-edge.</p>
                     </div>
@@ -859,8 +859,17 @@
                 const scale = baseScale * zoom;
                 const dispW = natW * scale, dispH = natH * scale;
                 if(center){ offX = (shellW - dispW) / 2; offY = (shellH - dispH) / 2; }
-                offX = Math.min(0, Math.max(shellW - dispW, offX));
-                offY = Math.min(0, Math.max(shellH - dispH, offY));
+                if (dispW >= shellW) {
+                    offX = Math.min(0, Math.max(shellW - dispW, offX));
+                } else {
+                    offX = Math.max(0, Math.min(shellW - dispW, offX));
+                }
+                
+                if (dispH >= shellH) {
+                    offY = Math.min(0, Math.max(shellH - dispH, offY));
+                } else {
+                    offY = Math.max(0, Math.min(shellH - dispH, offY));
+                }
                 cropImg.style.width = `${dispW}px`; cropImg.style.height = `${dispH}px`;
                 cropImg.style.transform = `translate(${offX}px, ${offY}px)`;
             }
@@ -1070,8 +1079,16 @@
                 ctx.filter = `brightness(${brightnessAmount}%) contrast(${contrastAmount}%) saturate(${saturationAmount}%)`;
 
                 if(mode === 'manual'){
-                    const scale = baseScale * zoom;
-                    ctx.drawImage(img, -offX / scale, -offY / scale, shellW / scale, shellH / scale, 0, 0, f.w, f.h);
+                    const scaleMultiplier = f.w / shellW;
+                    const destX = offX * scaleMultiplier;
+                    const destY = offY * scaleMultiplier;
+                    const destW = (natW * baseScale * zoom) * scaleMultiplier;
+                    const destH = (natH * baseScale * zoom) * scaleMultiplier;
+
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(0, 0, f.w, f.h);
+
+                    ctx.drawImage(img, 0, 0, natW, natH, destX, destY, destW, destH);
                 } else {
                     const bgScale = Math.max(f.w / natW, f.h / natH) * 1.08;
                     ctx.save(); ctx.filter = 'blur(14px) brightness(0.55) saturate(1.1)';
